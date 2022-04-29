@@ -23,6 +23,7 @@ conda activate phys100py3
 
 ### GITHUB
 #### Pull code (do this when you want most updated code)
+Also, make sure you pull master before pushing new code.
 ```
 git pull origin master
 ```
