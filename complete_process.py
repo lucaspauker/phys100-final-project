@@ -6,6 +6,7 @@ This is the complete version of the Celestial Quadrilaterals' calibration script
 
 import numpy as np
 import fitsio
+from astropy.stats.sigma_clipping import sigma_clip
 
 
 def average_bias(biasfiles):
@@ -23,7 +24,8 @@ def average_bias(biasfiles):
     biasdata= [fitsio.read(filepath) for filepath in biasfiles]
     biascube= np.array(biasdata)  # Use numpy to turn the biasdata list into an array
 
-    averagebias = np.median(biascube, axis=0) # Use numpy to average over the first axis. What kind
+    biascube = sigma_clip(biascube, 3)
+    averagebias = np.mean(biascube, axis=0) # Use numpy to average over the first axis. What kind
     # of average should we use?
 
     return averagebias
@@ -69,7 +71,8 @@ def average_dark(darkfiles,averagebias):
     cleandarkcube = np.array(darklist)
 
     # How do we want to average these darks?
-    averagedark = np.median(cleandarkcube, axis=0)
+    cleandarkcube = sigma_clip(cleandarkcube, 3)
+    averagedark = np.mean(cleandarkcube, axis=0)
     return averagedark
 
 
@@ -112,7 +115,8 @@ def average_flat(flatfiles,averagebias,averagedark):
     # Turn our list into a cube
     cleancube = np.array(cleanflatlist)
     # What kind of average should we take?
-    averageflat = np.median(cleancube,axis=0)
+    cleancube = sigma_clip(cleancube, 3)
+    averageflat = np.mean(cleancube, axis=0)
     return averageflat
 
 

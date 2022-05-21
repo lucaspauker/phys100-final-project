@@ -21,6 +21,114 @@ def neglogprob(lambd, data):
     return -np.sum(stats.poisson.logpmf(data, lambd))
 
 
+def multi_ellipse_aper_flux(image, n_ellipses=0, a_list=None, b_list=None,
+                            h_list=None, k_list=None, bgx=0, bgy= 0, background_width=10,
+                            angles=None, gain=3.0, nimages=1, errFlag=False, read_noise=None,
+                            avg_dark_current=None, exptime=None):
+    """ Measures the flux (in adc counts), gaussian flux uncertainty,
+    and the probability that the background is described by a constant
+
+    Args:
+        image (np.array): A numpy array containing the image
+        x (int): The x position of the object, in pixels
+        y (int): The y position of the object, in pixels
+        source_radius (float): The radius of a circular region
+            centered on the object representing the source.
+        background_width (float): The width of the anulus around the
+            source radius in which the background will be calculated
+        gain (float): The gain of the detector
+        nimages (float): The number of images that were coadded to make
+            the image
+        errFlag (bool): If true, then calculate the errors on the
+            magnitude measurement. For use in lab 1.5
+        read_noise (float): The average read noise for the CCD
+        avg_dark_current (float): The average dark current
+        exptime (float): The exposure time of each image in the coadd
+
+    Returns:
+        (float,float,float): 3 parameters, the flux, the 1 sigma error on the
+            flux, and the probability that the source is background.
+
+    """
+
+    ysize, xsize = image.shape
+    inSource_list = []
+
+    # create 2D arrays with the X,Y coordinates of every pixel
+    X,Y = np.meshgrid(np.arange(xsize), np.arange(ysize))
+
+    for i in range(n_ellipses):
+        # calculate the distance of every pixel from the object
+        # note: the x-1 accounts for the offset between sextractor and array
+        # indicies
+        dR = ((X - h_list[i] - 1)*np.cos(angles[i]) + (Y - k_list[i] - 1)*np.sin(angles[i]))**2/a_list[i]**2 + \
+             (-(X - h_list[i] - 1)*np.sin(angles[i]) + (Y - k_list[i] - 1)*np.cos(angles[i]))**2/b_list[i]**2
+
+        # 2D boolean arrays selecting the background and source regions
+        inSource = (dR <= 1)
+        for inOtherSource in inSource_list:
+            inSource = inSource & np.invert(inOtherSource)
+        inSource_list.append(inSource)
+
+    inAnySource = inSource_list[0]
+    for inSource in inSource_list[1:]:
+        inAnySource = inAnySource | inSource
+
+    dR = (X - bgx - 1)**2 + (Y - bgy - 1)**2
+    inBackground = (dR <= background_width) & np.invert(inAnySource)
+
+
+    # calculate the flux of the source, the flux uncertainty, and the
+    # probability that the background is described by a constant
+    #
+    # Feel free to add additional intermediate steps as needed. We will
+    # need to calculate
+    # the flux with Lab 1.3, but the uncertainties on the flux will wait
+    # until Lab 1.5.  Set the fluxerr and background_prob to zero until
+    # then.
+
+    nbackgroundpix = np.sum(inBackground)
+    B_bar = np.sum(image[inBackground]) / nbackgroundpix
+
+    nsourcepix_list = []
+    fluxes = []
+    fluxerrs = []
+
+    for inSource in inSource_list:
+        # Counting pixels
+        nsourcepix = np.sum(inSource) # N_A
+        nsourcepix_list.append(nsourcepix)
+        #nbackgroundpix = np.sum(inBackground) #N_B
+        # Expected background
+        #B_bar = np.sum(image[inBackground]) / nbackgroundpix
+
+        flux = ((np.sum(image[inSource]) - (B_bar * nsourcepix)) * gain) / exptime
+        fluxes.append(flux)
+
+        if (errFlag):
+            if flux < 0:
+                fluxerr = 0
+            else:
+                Fobj = flux * gain
+                t = exptime
+                Fsky = B_bar * nsourcepix * gain
+                n = nsourcepix
+                D = avg_dark_current * nsourcepix * gain
+                RN = read_noise * nsourcepix * gain
+                signoise = (Fobj*t) / np.sqrt(Fobj*t + Fsky*t*n + D*t*n + RN**2*n)
+                #fluxvar = (flux + (B_bar * gain / exptime) + ((read_noise * nimages * gain) / exptime) + (avg_dark_current * nimages * gain))  # check
+                #fluxerr = np.sqrt(fluxvar)
+                fluxerr = signoise
+            background_prob = 0
+            fluxerrs.append(fluxerr)
+        else:
+            fluxerr = 0
+            background_prob = 0
+            fluxerrs.append(fluxerr)
+
+    return fluxes, fluxerrs, inSource_list, inBackground
+
+
 def aper_flux(image, x, y, source_radius=10, background_width=10,
              gain=3.0, nimages=1, errFlag=False,read_noise=None,
              avg_dark_current=None, exptime=None):
