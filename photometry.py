@@ -30,10 +30,8 @@ def multi_ellipse_aper_flux(image, n_ellipses=0, a_list=None, b_list=None,
 
     Args:
         image (np.array): A numpy array containing the image
-        x (int): The x position of the object, in pixels
-        y (int): The y position of the object, in pixels
-        source_radius (float): The radius of a circular region
-            centered on the object representing the source.
+        h_list (iterable): A list of x positions of the ellipse centers, in pixels
+        k_list (iterable): The y positions of the ellipse centers, in pixels
         background_width (float): The width of the anulus around the
             source radius in which the background will be calculated
         gain (float): The gain of the detector
@@ -75,7 +73,7 @@ def multi_ellipse_aper_flux(image, n_ellipses=0, a_list=None, b_list=None,
         inAnySource = inAnySource | inSource
 
     dR = (X - bgx - 1)**2 + (Y - bgy - 1)**2
-    inBackground = (dR <= background_width) & np.invert(inAnySource)
+    inBackground = (dR <= background_width**2) & np.invert(inAnySource)
 
 
     # calculate the flux of the source, the flux uncertainty, and the
