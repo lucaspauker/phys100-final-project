@@ -71,7 +71,7 @@ def average_dark(darkfiles,averagebias):
     cleandarkcube = np.array(darklist)
 
     # How do we want to average these darks?
-    cleandarkcube = sigma_clip(cleandarkcube, 3)
+    cleandarkcube = sigma_clip(cleandarkcube, 5)
     averagedark = np.mean(cleandarkcube, axis=0)
     return averagedark
 
@@ -115,7 +115,7 @@ def average_flat(flatfiles,averagebias,averagedark):
     # Turn our list into a cube
     cleancube = np.array(cleanflatlist)
     # What kind of average should we take?
-    cleancube = sigma_clip(cleancube, 3)
+    cleancube = sigma_clip(cleancube, 5)
     averageflat = np.mean(cleancube, axis=0)
     return averageflat
 

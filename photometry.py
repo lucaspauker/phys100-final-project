@@ -23,24 +23,30 @@ def neglogprob(lambd, data):
 
 def multi_ellipse_aper_flux(image, n_ellipses=0, a_list=None, b_list=None,
                             h_list=None, k_list=None, bgx=0, bgy= 0, background_width=10,
-                            angles=None, gain=3.0, nimages=1, errFlag=False, read_noise=None,
-                            avg_dark_current=None, exptime=None):
+                            angles=None, gain=3.0, nimages1=1, nimages2=1, errFlag=False, read_noise1=None,
+                            read_noise2=None, avg_dark_current1=None, avg_dark_current2=None, exptime1=None,
+                            exptime2=None):
     """ Measures the flux (in adc counts), gaussian flux uncertainty,
     and the probability that the background is described by a constant
 
     Args:
-        image (np.array): A numpy array containing the image
+        image (np.array): A numpy array containing the image, should be coadded and
+                    not averaged
         h_list (iterable): A list of x positions of the ellipse centers, in pixels
         k_list (iterable): The y positions of the ellipse centers, in pixels
         background_width (float): The width of the anulus around the
             source radius in which the background will be calculated
         gain (float): The gain of the detector
-        nimages (float): The number of images that were coadded to make
+        nimages1 (float): The number of images of type 1 that were coadded to make
+            the image
+        nimages2 (float): The number of images of type 2 that were coadded to make
             the image
         errFlag (bool): If true, then calculate the errors on the
             magnitude measurement. For use in lab 1.5
-        read_noise (float): The average read noise for the CCD
-        avg_dark_current (float): The average dark current
+        read_noise1 (float): The average read noise for the CCD for type 1 calibrations
+        read_noise2 (float): The average read noise for the CCD for type 2 calibrations
+        avg_dark_current1 (float): The average dark current for type 1 calibrations
+        avg_dark_current2 (float): The average dark current for type 2 calibrations
         exptime (float): The exposure time of each image in the coadd
 
     Returns:
@@ -51,6 +57,7 @@ def multi_ellipse_aper_flux(image, n_ellipses=0, a_list=None, b_list=None,
 
     ysize, xsize = image.shape
     inSource_list = []
+    exptime = exptime1 + exptime2
 
     # create 2D arrays with the X,Y coordinates of every pixel
     X,Y = np.meshgrid(np.arange(xsize), np.arange(ysize))
@@ -107,16 +114,16 @@ def multi_ellipse_aper_flux(image, n_ellipses=0, a_list=None, b_list=None,
             if flux < 0:
                 fluxerr = 0
             else:
-                Fobj = flux * gain
-                t = exptime
+                Fobj = np.sum(image[inSource]) * gain
                 Fsky = B_bar * nsourcepix * gain
-                n = nsourcepix
-                D = avg_dark_current * nsourcepix * gain
-                RN = read_noise * nsourcepix * gain
-                signoise = (Fobj*t) / np.sqrt(Fobj*t + Fsky*t*n + D*t*n + RN**2*n)
-                #fluxvar = (flux + (B_bar * gain / exptime) + ((read_noise * nimages * gain) / exptime) + (avg_dark_current * nimages * gain))  # check
-                #fluxerr = np.sqrt(fluxvar)
-                fluxerr = signoise
+                D1 = avg_dark_current1 * nsourcepix * gain * exptime1
+                D2 = avg_dark_current2 * nsourcepix * gain * exptime2
+                RN1 = (read_noise1 ** 2) * nsourcepix * nimages1 * gain
+                RN2 = (read_noise2 ** 2) * nsourcepix * nimages2 * gain
+                #signoise = (Fobj*t) / np.sqrt(Fobj*t + Fsky*t*n + D*t*n + RN**2*n)
+                fluxvar = (Fobj + Fsky + D1 + D2 + RN1 + RN2)  # check
+                fluxerr = np.sqrt(fluxvar/(exptime ** 2))
+                #fluxerr = signoise
             background_prob = 0
             fluxerrs.append(fluxerr)
         else:
